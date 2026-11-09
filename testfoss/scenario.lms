@@ -1,0 +1,62 @@
+# Perspective Superstore integration through the pinned lmwebtest Playwright host.
+let base_url = env("TESTFOSS_URL", "http://127.0.0.1:8101");
+
+program = _lmcode_ cli="lmwebtest playwright";
+let base = pw.env("TESTFOSS_URL");
+let artifacts = pw.env("TESTFOSS_ARTIFACTS");
+let chrome = pw.env("CHROME");
+let launch_options = "{\"headless\":true,\"args\":[\"--use-angle=swiftshader\",\"--enable-unsafe-swiftshader\"]}";
+if (chrome != "") {
+  launch_options = "{\"headless\":true,\"executablePath\":\"" + chrome + "\",\"args\":[\"--use-angle=swiftshader\",\"--enable-unsafe-swiftshader\"]}";
+}
+let b = pw.launch("chromium", launch_options);
+let p = b.new_page("{\"viewport\":{\"width\":1440,\"height\":1000}}");
+p.set_default_timeout(120000);
+p.set_default_navigation_timeout(120000);
+p.goto(base, "{\"waitUntil\":\"domcontentloaded\",\"timeout\":120000}");
+p.wait_for_selector("perspective-viewer", "{\"state\":\"visible\",\"timeout\":120000}");
+p.wait_for_function("!!document.querySelector('perspective-viewer')?.getActivePanel?.()");
+
+$return.initial_rows = p.evaluate("(async () => { const viewer = document.querySelector('perspective-viewer'); await viewer.flush(); const view = await viewer.getView(); return await view.num_rows(); })()");
+$return.pivot_rows = p.evaluate("(async () => { const viewer = document.querySelector('perspective-viewer'); await viewer.restore({ group_by: ['Category'], columns: ['Sales', 'Profit'], settings: true }); await viewer.flush(); const view = await viewer.getView(); return await view.num_rows(); })()");
+$return.pivot_group_by = p.evaluate("(async () => (await document.querySelector('perspective-viewer').save()).group_by)()");
+$return.filtered_rows = p.evaluate("(async () => { const viewer = document.querySelector('perspective-viewer'); await viewer.restore({ group_by: [], filter: [['Category', '==', 'Furniture']], columns: ['Category', 'Sales'], settings: true }); await viewer.flush(); const view = await viewer.getView(); return await view.num_rows(); })()");
+$return.filter = p.evaluate("(async () => (await document.querySelector('perspective-viewer').save()).filter)()");
+$return.wasm_resources = p.evaluate("performance.getEntriesByType('resource').filter((entry) => entry.name.endsWith('.wasm')).map((entry) => entry.name)");
+$return.page_errors = p.page_errors();
+$return.failed_requests = p.failed_requests();
+p.screenshot(artifacts + "/perspective.png", "{\"timeout\":60000}");
+b.close();
+end _lmcode_
+
+let res = run_lmcode(program, {command: ["lmwebtest", "playwright", "--lmcode", "$DSLFILE"]});
+let stats = {pass: 0, fail: 0};
+fn check(condition, name, detail) {
+  if (condition) {
+    stats["pass"] = stats.get("pass", 0) + 1;
+    println(f"[PASS] {name}: {detail}");
+  } else {
+    stats["fail"] = stats.get("fail", 0) + 1;
+    println(f"[FAIL] {name}: {detail}");
+  }
+}
+
+check(res.get("ok", false), "lmwebtest run", "Playwright scenario completed");
+if (!res.get("ok", false)) {
+  println(json_stringify(res));
+  exit(1);
+}
+let r = res.get("result", {});
+check(r.get("initial_rows", "") == "9994", "actual Superstore table", r.get("initial_rows", ""));
+check(r.get("pivot_rows", "") == "4", "Category pivot rows including total", r.get("pivot_rows", ""));
+check(r.get("pivot_group_by", "") == "[\"Category\"]", "Category pivot configuration", r.get("pivot_group_by", ""));
+check(r.get("filtered_rows", "") == "2121", "Furniture filter rows", r.get("filtered_rows", ""));
+check(r.get("filter", "") == "[[\"Category\",\"==\",\"Furniture\"]]", "Furniture filter configuration", r.get("filter", ""));
+check(contains(r.get("wasm_resources", ""), "perspective-server.wasm"), "local server Wasm", "loaded by the browser");
+check(contains(r.get("wasm_resources", ""), "perspective-viewer.wasm"), "local viewer Wasm", "loaded by the browser");
+check(r.get("page_errors", "") == "[]", "uncaught browser errors", r.get("page_errors", ""));
+check(r.get("failed_requests", "") == "[]", "failed browser requests", r.get("failed_requests", ""));
+println(f"Perspective integration: {str(stats.get('pass', 0))} passed, {str(stats.get('fail', 0))} failed");
+if (stats.get("fail", 0) > 0) {
+  exit(1);
+}

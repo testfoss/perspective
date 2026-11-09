@@ -180,3 +180,10 @@ does not imply any affiliation with or endorsement by them.
 [Trademark Policy](https://trademark-policy.openjsf.org/) |
 [Trademark List](https://trademark-list.openjsf.org/) |
 [Cookie Policy](https://www.linuxfoundation.org/cookies/)
+
+## Testfoss demo
+
+The additive `testfoss-demo` branch builds the official Superstore example and checks its table, Category pivot, and Furniture filter through `lmwebtest playwright`.
+Run `./testfoss/run.sh` for the source build, 11 focused upstream tests, and browser scenario, or see [the demo guide](testfoss/README.md) for prerequisites and browser-only reuse.
+The workflow is `.github/workflows/testfoss.yml`; upstream source and examples are unchanged.
+This demo preserves the project's Apache-2.0 license.
