@@ -36,5 +36,5 @@ The lab and fork scenario validate the debug/source-built browser path, not a re
 The lab was not a native GPU benchmark.
 The expensive build was not repeated while authoring this additive content.
 The new scenario passed all 10 lmwebtest checks against the existing lab-built upstream server with `/usr/bin/google-chrome`; the screenshot visually confirmed the Furniture result.
-Fresh-install schema discovery and syntax checks also passed, while the full source build and Actions run remain CI validation.
+Fresh-install schema discovery and syntax checks also passed. GitHub Actions then passed the complete six-package build, all 11 focused upstream tests, and the lmwebtest scenario in run 42643909219.
 GitHub-hosted CMake and other unversioned system packages may differ from the lab's exact host tools.
